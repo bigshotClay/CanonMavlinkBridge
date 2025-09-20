@@ -11,12 +11,15 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
+    ninja-build \
     pkg-config \
     git \
     curl \
     wget \
     libusb-1.0-0-dev \
     libyaml-cpp-dev \
+    ca-certificates \
+    lsb-release \
     && rm -rf /var/lib/apt/lists/*
 
 # Set architecture-specific variables
@@ -43,9 +46,12 @@ COPY . .
 
 # Build the application
 RUN cmake -B build \
+    -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_TESTING=OFF \
-    && cmake --build build --config Release -j$(nproc)
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    && cmake --build build --config Release \
+    && cmake --install build
 
 # Runtime stage
 FROM ubuntu:22.04 AS runtime
@@ -64,7 +70,7 @@ RUN mkdir -p /tmp/camera /var/log /etc/canon-mavlink-bridge \
     && chown -R drone:drone /tmp/camera /var/log
 
 # Copy application binary
-COPY --from=builder /app/build/canon_mavlink_bridge /usr/local/bin/
+COPY --from=builder /usr/local/bin/canon_mavlink_bridge /usr/local/bin/
 COPY --from=builder /app/config/config.yaml /etc/canon-mavlink-bridge/
 
 # Copy MAVSDK libraries

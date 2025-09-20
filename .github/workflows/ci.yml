@@ -62,11 +62,15 @@ jobs:
         sudo apt-get install -y \
           build-essential \
           cmake \
+          ninja-build \
           pkg-config \
           libusb-1.0-0-dev \
           libyaml-cpp-dev \
           curl \
-          wget
+          wget \
+          valgrind \
+          lcov \
+          gcovr
 
     - name: Install MAVSDK
       run: |
@@ -85,27 +89,72 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake -B build \
-          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-          -DBUILD_TESTING=ON \
-          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        cmake_args="-B build -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DBUILD_TESTING=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+
+        # Enable code coverage for x64 Ubuntu 22.04 builds
+        if [[ "${{ matrix.os }}" == "ubuntu-22.04" && "${{ matrix.arch }}" == "x64" ]]; then
+          cmake_args="$cmake_args -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_C_FLAGS=--coverage"
+        fi
+
+        cmake $cmake_args
 
     - name: Build
-      run: cmake --build build --config ${{ env.BUILD_TYPE }} -j$(nproc)
+      run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
 
     - name: Run unit tests
       run: |
         cd build
-        ctest --output-on-failure --parallel $(nproc)
+        ctest --output-on-failure --parallel
+
+    - name: Run memory tests with Valgrind (x64 only)
+      if: matrix.arch == 'x64' && matrix.os == 'ubuntu-22.04'
+      run: |
+        cd build
+        # Run main executable with valgrind
+        valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 ./canon_mavlink_bridge --help
+
+    - name: Generate code coverage report (Ubuntu 22.04 x64 only)
+      if: matrix.arch == 'x64' && matrix.os == 'ubuntu-22.04'
+      run: |
+        cd build
+        # Generate coverage data
+        lcov --capture --directory . --output-file coverage.info
+        lcov --remove coverage.info '/usr/*' '*/_deps/*' '*/tests/*' '*/test/*' '*_test.cpp' --output-file coverage_filtered.info
+        lcov --list coverage_filtered.info
+
+        # Generate HTML report
+        genhtml coverage_filtered.info --output-directory coverage_html
+
+        # Generate summary
+        gcovr --xml-pretty --exclude-unreachable-branches --print-summary -o coverage.xml
+
+    - name: Upload coverage to Codecov
+      if: matrix.arch == 'x64' && matrix.os == 'ubuntu-22.04'
+      uses: codecov/codecov-action@v3
+      with:
+        file: build/coverage_filtered.info
+        flags: unittests
+        name: codecov-umbrella
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: canon-mavlink-bridge-${{ matrix.os }}-${{ matrix.arch }}
         path: |
-          build/canon_mavlink_bridge
+          build/bin/canon_mavlink_bridge
           build/compile_commands.json
-        retention-days: 7
+        retention-days: 30
+
+    - name: Upload coverage artifacts
+      if: matrix.arch == 'x64' && matrix.os == 'ubuntu-22.04'
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: |
+          build/coverage_html/
+          build/coverage.xml
+          build/coverage_filtered.info
+        retention-days: 30
 
     - name: Upload test results
       uses: actions/upload-artifact@v4
@@ -127,6 +176,7 @@ jobs:
       uses: github/codeql-action/init@v3
       with:
         languages: cpp
+        config-file: ./.github/codeql/codeql-config.yml
 
     - name: Install dependencies
       run: |
