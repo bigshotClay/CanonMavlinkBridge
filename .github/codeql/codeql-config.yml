@@ -1,0 +1,32 @@
+name: "CodeQL Security Analysis Config"
+
+queries:
+  - uses: security-extended
+  - uses: security-and-quality
+
+paths-ignore:
+  - build/
+  - _deps/
+  - third_party/
+  - "**/tests/**"
+  - "**/*_test.cpp"
+  - "**/*_test.h"
+
+paths:
+  - src/
+  - include/
+
+# Disable problematic queries for embedded C++
+disable-default-queries: false
+
+query-filters:
+  # Disable overly strict queries for embedded systems
+  - exclude:
+      id: cpp/poorly-documented-function
+  - exclude:
+      id: cpp/unused-local-variable
+
+# Additional packs for C++ security analysis
+packs:
+  - codeql/cpp-queries:AlertSuppression.ql
+  - codeql/cpp-queries:Security

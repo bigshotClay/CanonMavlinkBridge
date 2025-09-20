@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/bigshotClay/CanonMavlinkBridge/discussions
+    about: Ask questions, share ideas, or discuss general topics about the project
+  - name: Canon Developer Community
+    url: https://developercommunity.usa.canon.com/
+    about: For questions specific to Canon EDSDK or camera functionality
+  - name: MAVSDK Documentation
+    url: https://mavsdk.mavlink.io/
+    about: For questions about MAVSDK integration or MAVLink protocol

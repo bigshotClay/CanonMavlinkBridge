@@ -22,3 +22,10 @@ Add any other context or screenshots about the feature request.
 - Impact on existing features
 - Hardware requirements
 - Performance implications
+- Testing requirements
+
+**Priority Level**
+- [ ] Low (nice to have)
+- [ ] Medium (would improve workflow)
+- [ ] High (significantly impacts functionality)
+- [ ] Critical (blocking current operations)

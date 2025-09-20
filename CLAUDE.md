@@ -282,6 +282,43 @@ private:
 - Connection loss recovery
 - FTP transfer failure recovery
 
+### Development Error Management Policy
+
+When implementing planned issues, newly discovered errors or dependency problems should be handled systematically:
+
+#### Error Discovery During Implementation
+- **Immediate Action**: Document the error with full context (error messages, reproduction steps, affected components)
+- **Issue Creation**: Create a new GitHub issue for each distinct error or missing dependency
+- **Issue Linking**: Reference the original issue being implemented to maintain traceability
+- **Priority Assessment**: Assign appropriate priority based on impact to the original issue
+
+#### Issue Creation Guidelines
+- **Title Format**: `"[Error Type] Brief description of the issue"`
+- **Labels**: Use appropriate labels (`type:bug`, `component:build`, `priority:high`, etc.)
+- **Description**: Include:
+  - Full error output and reproduction steps
+  - System information (OS, architecture, versions)
+  - Impact on the original planned issue
+  - Proposed solution if known
+  - Links to related issues
+
+#### Resolution Strategy
+- **Blocking Issues**: High-priority errors that prevent completion of the original issue
+- **Non-blocking Issues**: Lower-priority issues that can be deferred
+- **Dependency Chain**: Some errors may reveal additional missing dependencies (like JsonCpp/TinyXML2 for MAVSDK)
+
+#### Examples
+- Missing dependencies (JsonCpp, TinyXML2, yaml-cpp) → Create dependency management issues
+- Build configuration errors → Create build system issues
+- Missing source files → Create implementation skeleton issues
+- Platform compatibility issues → Create platform-specific issues
+
+This approach ensures that:
+1. All errors are tracked and resolved systematically
+2. The project maintains comprehensive issue documentation
+3. Dependencies and blockers are clearly identified
+4. Future developers can understand the full implementation history
+
 ## Configuration File (`config.yaml`)
 
 ```yaml
@@ -758,12 +795,16 @@ Add any other context or screenshots about the feature request.
 2. **Issue Triage**: Weekly triage to assign labels, milestones, and priority
 3. **Branch Creation**: Feature branches from main (`feature/issue-number-description`)
 4. **Development**: Work on feature branch with regular commits
+   - **Error Discovery**: If new errors are discovered during implementation, create new GitHub issues following the [Development Error Management Policy](#development-error-management-policy)
+   - **Dependency Issues**: Missing dependencies should trigger immediate issue creation for systematic resolution
 5. **Testing**: Ensure all tests pass locally
 6. **Pull Request**: Create PR with description linking to issue
 7. **Code Review**: At least one reviewer approval required
 8. **CI/CD**: Automated tests must pass
 9. **Merge**: Squash and merge to main
 10. **Deployment**: Automatic deployment to staging environment
+
+**Note**: See the [Error Handling](#error-handling) section for detailed guidelines on managing newly discovered issues during development.
 
 ### Dependency Management Strategy
 
