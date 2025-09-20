@@ -19,37 +19,196 @@ enable_testing()
 
 # Find required packages
 find_package(Threads REQUIRED)
-find_package(PkgConfig REQUIRED)
+
+# Try to find PkgConfig, but make it optional for platforms that don't have it
+find_package(PkgConfig QUIET)
+
+# Include FetchContent for dependency management
+include(FetchContent)
+
+# Find JsonCpp (required by MAVSDK)
+find_package(jsoncpp QUIET)
+
+if(NOT jsoncpp_FOUND)
+    message(STATUS "jsoncpp not found as system package, using FetchContent")
+
+    FetchContent_Declare(
+        jsoncpp
+        GIT_REPOSITORY https://github.com/open-source-parsers/jsoncpp.git
+        GIT_TAG 1.9.5
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+    )
+
+    # Configure jsoncpp build options
+    set(JSONCPP_WITH_TESTS OFF CACHE BOOL "Disable jsoncpp tests")
+    set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF CACHE BOOL "Disable jsoncpp post-build tests")
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build jsoncpp as static library")
+    set(BUILD_STATIC_LIBS ON CACHE BOOL "Build jsoncpp as static library")
+
+    FetchContent_MakeAvailable(jsoncpp)
+
+    # Create JsonCpp::JsonCpp alias target that MAVSDK expects
+    if(TARGET jsoncpp_static)
+        add_library(JsonCpp::JsonCpp ALIAS jsoncpp_static)
+        message(STATUS "Created JsonCpp::JsonCpp alias for jsoncpp_static")
+    elseif(TARGET jsoncpp_lib)
+        add_library(JsonCpp::JsonCpp ALIAS jsoncpp_lib)
+        message(STATUS "Created JsonCpp::JsonCpp alias for jsoncpp_lib")
+    else()
+        message(FATAL_ERROR "JsonCpp target not found after FetchContent")
+    endif()
+else()
+    message(STATUS "Found jsoncpp as system package")
+    # Verify system package has the expected target
+    if(NOT TARGET JsonCpp::JsonCpp)
+        message(FATAL_ERROR "JsonCpp::JsonCpp target not found in system package")
+    endif()
+endif()
+
+# Find TinyXML2 (required by MAVSDK)
+find_package(tinyxml2 QUIET)
+
+if(NOT tinyxml2_FOUND)
+    message(STATUS "tinyxml2 not found as system package, using FetchContent")
+
+    FetchContent_Declare(
+        tinyxml2
+        GIT_REPOSITORY https://github.com/leethomason/tinyxml2.git
+        GIT_TAG 9.0.0
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+    )
+
+    # Configure TinyXML2 build options
+    set(tinyxml2_BUILD_TESTING OFF CACHE BOOL "Disable tinyxml2 tests")
+
+    FetchContent_MakeAvailable(tinyxml2)
+
+    # Create tinyxml2::tinyxml2 alias target that MAVSDK expects
+    if(TARGET tinyxml2)
+        add_library(tinyxml2::tinyxml2 ALIAS tinyxml2)
+        message(STATUS "Created tinyxml2::tinyxml2 alias for tinyxml2")
+    else()
+        message(FATAL_ERROR "TinyXML2 target not found after FetchContent")
+    endif()
+else()
+    message(STATUS "Found tinyxml2 as system package")
+    # Verify system package has the expected target
+    if(NOT TARGET tinyxml2::tinyxml2)
+        message(FATAL_ERROR "tinyxml2::tinyxml2 target not found in system package")
+    endif()
+endif()
 
 # Try to find MAVSDK as system package first
 find_package(MAVSDK QUIET)
 
 if(NOT MAVSDK_FOUND)
     message(STATUS "MAVSDK not found as system package, using FetchContent")
-    include(FetchContent)
 
     FetchContent_Declare(
         MAVSDK
         GIT_REPOSITORY https://github.com/mavlink/MAVSDK.git
         GIT_TAG v1.4.16
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
     )
 
-    # Configure MAVSDK options
-    set(SUPERBUILD OFF)
-    set(BUILD_MAVSDK_SERVER OFF)
-    set(BUILD_SHARED_LIBS ON)
+    # Configure MAVSDK build options for better performance
+    set(SUPERBUILD OFF CACHE BOOL "Disable MAVSDK superbuild")
+    set(BUILD_MAVSDK_SERVER OFF CACHE BOOL "Disable MAVSDK server")
+    set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries")
+    set(BUILD_TESTS OFF CACHE BOOL "Disable MAVSDK tests")
+
+    # Enable required plugins
+    set(PLUGINS "camera;ftp" CACHE STRING "Enable camera and ftp plugins")
+
+    # Optional: disable curl for simpler builds
+    set(ENABLE_CURL_TELEMETRY OFF CACHE BOOL "Disable curl telemetry")
+    set(BUILD_WITHOUT_CURL ON CACHE BOOL "Build without curl")
 
     FetchContent_MakeAvailable(MAVSDK)
 
-    # Set MAVSDK targets
-    set(MAVSDK_LIBRARIES mavsdk mavsdk_camera mavsdk_ftp)
+    # Verify core MAVSDK library is available
+    if(NOT TARGET mavsdk)
+        message(FATAL_ERROR "MAVSDK core library not available after FetchContent")
+    endif()
+
+    # Check for camera plugin (warn if not available)
+    set(AVAILABLE_PLUGINS "")
+    if(TARGET mavsdk_camera)
+        list(APPEND AVAILABLE_PLUGINS "camera")
+        message(STATUS "MAVSDK camera plugin available")
+    else()
+        message(WARNING "MAVSDK camera plugin not available - camera functionality will be limited")
+    endif()
+
+    # Check for FTP plugin (warn if not available)
+    if(TARGET mavsdk_ftp)
+        list(APPEND AVAILABLE_PLUGINS "ftp")
+        message(STATUS "MAVSDK FTP plugin available")
+    else()
+        message(WARNING "MAVSDK FTP plugin not available - file transfer functionality will be limited")
+    endif()
+
+    # Set MAVSDK targets for FetchContent build
+    set(MAVSDK_LIBRARIES mavsdk)
+    if(TARGET mavsdk_camera)
+        list(APPEND MAVSDK_LIBRARIES mavsdk_camera)
+    endif()
+    if(TARGET mavsdk_ftp)
+        list(APPEND MAVSDK_LIBRARIES mavsdk_ftp)
+    endif()
+
+    message(STATUS "Using MAVSDK from FetchContent with available plugins: ${AVAILABLE_PLUGINS}")
 else()
     message(STATUS "Found MAVSDK as system package")
-    set(MAVSDK_LIBRARIES MAVSDK::mavsdk MAVSDK::mavsdk_camera MAVSDK::mavsdk_ftp)
+
+    # Verify system package has required components
+    if(NOT TARGET MAVSDK::mavsdk)
+        message(FATAL_ERROR "MAVSDK::mavsdk target not found in system package")
+    endif()
+
+    # Check for camera plugin
+    set(MAVSDK_SYSTEM_LIBRARIES "")
+    if(TARGET MAVSDK::mavsdk_camera)
+        list(APPEND MAVSDK_SYSTEM_LIBRARIES MAVSDK::mavsdk_camera)
+        message(STATUS "Found MAVSDK camera plugin")
+    else()
+        message(WARNING "MAVSDK camera plugin not found in system package")
+    endif()
+
+    # Check for FTP plugin
+    if(TARGET MAVSDK::mavsdk_ftp)
+        list(APPEND MAVSDK_SYSTEM_LIBRARIES MAVSDK::mavsdk_ftp)
+        message(STATUS "Found MAVSDK FTP plugin")
+    else()
+        message(WARNING "MAVSDK FTP plugin not found in system package")
+    endif()
+
+    set(MAVSDK_LIBRARIES MAVSDK::mavsdk ${MAVSDK_SYSTEM_LIBRARIES})
 endif()
 
 # Find yaml-cpp
-pkg_check_modules(YAMLCPP REQUIRED yaml-cpp)
+if(PkgConfig_FOUND)
+    pkg_check_modules(YAMLCPP yaml-cpp)
+endif()
+
+if(NOT YAMLCPP_FOUND)
+    # Fall back to find_package for yaml-cpp
+    find_package(yaml-cpp QUIET)
+    if(yaml-cpp_FOUND)
+        set(YAMLCPP_LIBRARIES yaml-cpp)
+        set(YAMLCPP_INCLUDE_DIRS "")
+        message(STATUS "Found yaml-cpp using find_package")
+    else()
+        message(WARNING "yaml-cpp not found. Configuration file parsing will be disabled.")
+        set(YAMLCPP_LIBRARIES "")
+        set(YAMLCPP_INCLUDE_DIRS "")
+    endif()
+else()
+    message(STATUS "Found yaml-cpp using pkg-config")
+endif()
 
 # EDSDK Configuration
 set(EDSDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/edsdk")
