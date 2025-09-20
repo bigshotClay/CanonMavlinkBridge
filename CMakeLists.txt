@@ -198,16 +198,52 @@ if(NOT YAMLCPP_FOUND)
     # Fall back to find_package for yaml-cpp
     find_package(yaml-cpp QUIET)
     if(yaml-cpp_FOUND)
-        set(YAMLCPP_LIBRARIES yaml-cpp)
+        set(YAMLCPP_LIBRARIES yaml-cpp::yaml-cpp)
         set(YAMLCPP_INCLUDE_DIRS "")
         message(STATUS "Found yaml-cpp using find_package")
     else()
-        message(WARNING "yaml-cpp not found. Configuration file parsing will be disabled.")
-        set(YAMLCPP_LIBRARIES "")
-        set(YAMLCPP_INCLUDE_DIRS "")
+        # Fall back to FetchContent for yaml-cpp
+        message(STATUS "yaml-cpp not found as system package, using FetchContent")
+
+        FetchContent_Declare(
+            yaml-cpp
+            GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+            GIT_TAG yaml-cpp-0.7.0
+            GIT_SHALLOW TRUE
+            GIT_PROGRESS TRUE
+        )
+
+        # Configure yaml-cpp build options
+        set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "Disable yaml-cpp tests")
+        set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "Disable yaml-cpp tools")
+        set(YAML_CPP_INSTALL OFF CACHE BOOL "Disable yaml-cpp install")
+        set(YAML_BUILD_SHARED_LIBS OFF CACHE BOOL "Build yaml-cpp as static library")
+
+        FetchContent_MakeAvailable(yaml-cpp)
+
+        # Set yaml-cpp variables for compatibility
+        if(TARGET yaml-cpp::yaml-cpp)
+            set(YAMLCPP_LIBRARIES yaml-cpp::yaml-cpp)
+            set(YAMLCPP_INCLUDE_DIRS "")
+            message(STATUS "yaml-cpp successfully built from source via FetchContent")
+        elseif(TARGET yaml-cpp)
+            # Create alias if the target doesn't have namespace
+            add_library(yaml-cpp::yaml-cpp ALIAS yaml-cpp)
+            set(YAMLCPP_LIBRARIES yaml-cpp::yaml-cpp)
+            set(YAMLCPP_INCLUDE_DIRS "")
+            message(STATUS "yaml-cpp successfully built from source via FetchContent (created alias)")
+        else()
+            message(WARNING "yaml-cpp target not found after FetchContent. Configuration file parsing will be disabled.")
+            set(YAMLCPP_LIBRARIES "")
+            set(YAMLCPP_INCLUDE_DIRS "")
+        endif()
     endif()
 else()
     message(STATUS "Found yaml-cpp using pkg-config")
+    # Ensure YAMLCPP_LIBRARIES is set correctly for pkg-config
+    if(NOT YAMLCPP_LIBRARIES)
+        set(YAMLCPP_LIBRARIES ${YAMLCPP_LINK_LIBRARIES})
+    endif()
 endif()
 
 # EDSDK Configuration
