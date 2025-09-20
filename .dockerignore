@@ -1,0 +1,40 @@
+# Build artifacts
+build/
+build-*/
+cmake-build-*/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Version control
+.git/
+.gitignore
+
+# Documentation (not needed for runtime)
+docs/
+*.md
+!README.md
+
+# Development files
+.github/
+scripts/
+tests/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Third party sources (will be downloaded separately)
+third_party/edsdk/
+third_party/mavsdk/
+
+# Configuration overrides
+config/*.local.*

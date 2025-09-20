@@ -1,0 +1,28 @@
+# CanonMavlinkBridge Configuration
+mavlink:
+  connection: "udp://0.0.0.0:14540"
+  system_id: 1
+  component_id: 100
+
+canon:
+  auto_connect: true
+  save_to: host  # host | camera | both
+  image_quality: large_jpeg_fine
+
+storage:
+  path: "/tmp/camera"
+  max_size_mb: 1000
+  cleanup_on_start: false
+
+features:
+  live_view: false
+  distance_trigger: true
+  auto_focus: true
+
+status:
+  update_rate_hz: 1
+  include_gps: true
+
+logging:
+  level: info  # debug | info | warning | error
+  file: "/var/log/canon_mavlink_bridge.log"

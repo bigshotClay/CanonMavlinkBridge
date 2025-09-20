@@ -1,0 +1,28 @@
+[Unit]
+Description=Canon MAVLink Bridge
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=drone
+Group=drone
+ExecStart=@CMAKE_INSTALL_PREFIX@/bin/canon_mavlink_bridge -c /etc/canon-mavlink-bridge/config.yaml
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment
+Environment=LD_LIBRARY_PATH=/usr/local/lib
+Environment=EDSDK_ROOT=/opt/edsdk
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/tmp/camera /var/log
+
+[Install]
+WantedBy=multi-user.target

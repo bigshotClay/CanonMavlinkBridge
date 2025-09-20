@@ -1,0 +1,51 @@
+# Build directories
+build/
+build-*/
+cmake-build-*/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Compiled binaries
+*.o
+*.so
+*.a
+*.dylib
+*.dll
+*.exe
+
+# EDSDK (will be downloaded separately)
+third_party/edsdk/lib/
+third_party/edsdk/include/
+third_party/edsdk/*.zip
+third_party/edsdk/*.tar.gz
+
+# Logs
+*.log
+logs/
+
+# Configuration overrides
+config/local.yaml
+config/*.local.*
+
+# Test results
+test_results/
+coverage/
+*.gcda
+*.gcno
+
+# Package managers
+vcpkg_installed/
+conan.lock
+
+# Runtime files
+/tmp/
+*.pid
